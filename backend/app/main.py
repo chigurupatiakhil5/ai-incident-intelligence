@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
@@ -7,10 +8,12 @@ from datetime import datetime
 
 from app.database import get_db, create_tables
 from app.models.incident import Incident
+from app.workers.sqs_worker import run_worker
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
+    asyncio.create_task(run_worker())
     yield
 
 app = FastAPI(title="AI Incident Intelligence Platform", lifespan=lifespan)
@@ -48,4 +51,3 @@ def create_incident(incident: IncidentCreate, db: Session = Depends(get_db)):
     db.add(db_incident)
     db.commit()
     db.refresh(db_incident)
-    return db_incident
