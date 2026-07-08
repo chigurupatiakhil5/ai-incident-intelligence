@@ -28,6 +28,7 @@ services:
       AWS_REGION: ${AWS_REGION}
       SQS_QUEUE_URL: ${SQS_QUEUE_URL}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      SUPABASE_DB_URL: ${SUPABASE_DB_URL}
     depends_on:
       db:
         condition: service_healthy

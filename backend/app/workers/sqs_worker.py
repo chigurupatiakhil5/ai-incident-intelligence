@@ -2,6 +2,7 @@ import asyncio
 import logging
 from app.services.sqs_consumer import poll_messages
 from app.services.anomaly_detector import detect_anomaly
+from app.services.indexer import index_incident
 from app.database import SessionLocal
 from app.models.incident import Incident
 
@@ -24,7 +25,14 @@ async def run_worker():
                         if anomaly:
                             incident = Incident(**anomaly)
                             db.add(incident)
-                            logger.info(f"Incident created: {anomaly['server_name']} - {anomaly['severity']}")
+                            db.flush()
+                            index_incident(
+                                incident_id=incident.id,
+                                server_name=incident.server_name,
+                                severity=incident.severity,
+                                description=incident.description,
+                            )
+                            logger.info(f"Incident created and indexed: {anomaly['server_name']} - {anomaly['severity']}")
                     db.commit()
                 finally:
                     db.close()

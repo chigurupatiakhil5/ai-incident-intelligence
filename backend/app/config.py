@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     sqs_queue_url: str = ""
     anthropic_api_key: str = ""
+    supabase_db_url: str = ""
 
     class Config:
         env_file = ".env"
