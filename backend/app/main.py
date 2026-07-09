@@ -9,6 +9,7 @@ from datetime import datetime
 from app.database import get_db, create_tables
 from app.models.incident import Incident
 from app.workers.sqs_worker import run_worker
+from app.routers import query
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,6 +18,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="AI Incident Intelligence Platform", lifespan=lifespan)
+
+app.include_router(query.router)
 
 class IncidentCreate(BaseModel):
     server_name: str
@@ -51,3 +54,4 @@ def create_incident(incident: IncidentCreate, db: Session = Depends(get_db)):
     db.add(db_incident)
     db.commit()
     db.refresh(db_incident)
+    return db_incident
