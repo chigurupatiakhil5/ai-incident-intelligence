@@ -33,6 +33,79 @@ def search_similar_incidents(question: str, limit: int = 5) -> list[dict]:
     finally:
         conn.close()
 
+async def stream_claude(context: str, question: str):
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        async with client.stream(
+            "POST",
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": settings.anthropic_api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5",
+                "max_tokens": 1024,
+                "stream": True,
+                "system": "You are an AI ops assistant. Answer questions about system incidents based on the provided incident history. Be concise and helpful.",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": f"Based on these past incidents:\n\n{context}\n\nQuestion: {question}"
+                    }
+                ]
+            }
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    try:
+                        event = json.loads(data)
+                        if event.get("type") == "content_block_delta":
+                            yield event["delta"].get("text", "")
+                    except json.JSONDecodeError:
+                        pass
+
+async def stream_groq(context: str, question: str):
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        async with client.stream(
+            "POST",
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {settings.groq_api_key}",
+                "content-type": "application/json",
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "max_tokens": 1024,
+                "stream": True,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an AI ops assistant. Answer questions about system incidents based on the provided incident history. Be concise and helpful."
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Based on these past incidents:\n\n{context}\n\nQuestion: {question}"
+                    }
+                ]
+            }
+        ) as response:
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+                    try:
+                        event = json.loads(data)
+                        delta = event["choices"][0]["delta"]
+                        if "content" in delta and delta["content"]:
+                            yield delta["content"]
+                    except (json.JSONDecodeError, KeyError):
+                        pass
+
 async def stream_rag_response(question: str):
     try:
         incidents = search_similar_incidents(question)
@@ -47,39 +120,15 @@ async def stream_rag_response(question: str):
         else:
             context = "No relevant incidents found."
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            async with client.stream(
-                "POST",
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": settings.anthropic_api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": "claude-haiku-4-5",
-                    "max_tokens": 1024,
-                    "stream": True,
-                    "system": "You are an AI ops assistant. Answer questions about system incidents based on the provided incident history. Be concise and helpful.",
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": f"Based on these past incidents:\n\n{context}\n\nQuestion: {question}"
-                        }
-                    ]
-                }
-            ) as response:
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]
-                        if data == "[DONE]":
-                            break
-                        try:
-                            event = json.loads(data)
-                            if event.get("type") == "content_block_delta":
-                                yield event["delta"].get("text", "")
-                        except json.JSONDecodeError:
-                            pass
+        provider = settings.llm_provider.lower()
+        logger.info(f"Using LLM provider: {provider}")
+
+        if provider == "groq":
+            async for token in stream_groq(context, question):
+                yield token
+        else:
+            async for token in stream_claude(context, question):
+                yield token
 
     except Exception as e:
         logger.error(f"RAG pipeline error: {e}")

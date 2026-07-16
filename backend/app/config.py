@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     sqs_queue_url: str = ""
     anthropic_api_key: str = ""
     supabase_db_url: str = ""
+    groq_api_key: str = ""
+    llm_provider: str = "claude"
 
     class Config:
         env_file = ".env"
