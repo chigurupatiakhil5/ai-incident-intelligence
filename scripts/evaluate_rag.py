@@ -5,7 +5,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from fastembed import TextEmbedding
 from dotenv import load_dotenv
-
+import mlflow
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -125,15 +125,26 @@ async def main():
         "ground_truth": ground_truths,
     })
 
-    print("Scoring with RAGAS (this takes ~30 seconds)...\n")
-    result = evaluate(dataset, metrics=[faithfulness, context_precision, context_recall])
+    mlflow.set_experiment("rag-incident-intelligence")
+    with mlflow.start_run():
+        mlflow.log_param("llm_provider", "claude-haiku-4-5")
+        mlflow.log_param("embedding_model", "BAAI/bge-small-en-v1.5")
+        mlflow.log_param("num_test_cases", len(TEST_CASES))
 
-    print("\n── RAGAS Scores ──────────────────────────────")
-    print(f"Faithfulness:      {result['faithfulness']:.3f}  (is answer grounded in context?)")
-    print(f"Context Precision: {result['context_precision']:.3f}  (did we retrieve relevant docs?)")
-    print(f"Context Recall:    {result['context_recall']:.3f}  (did we retrieve all relevant docs?)")
-    print("─────────────────────────────────────────────")
-    print("\nScores range 0-1. Higher is better.")
+        print("Scoring with RAGAS (this takes ~30 seconds)...\n")
+        result = evaluate(dataset, metrics=[faithfulness, context_precision, context_recall])
+
+        mlflow.log_metric("faithfulness", result["faithfulness"])
+        mlflow.log_metric("context_precision", result["context_precision"])
+        mlflow.log_metric("context_recall", result["context_recall"])
+
+        print("\n── RAGAS Scores ──────────────────────────────")
+        print(f"Faithfulness:      {result['faithfulness']:.3f}  (is answer grounded in context?)")
+        print(f"Context Precision: {result['context_precision']:.3f}  (did we retrieve relevant docs?)")
+        print(f"Context Recall:    {result['context_recall']:.3f}  (did we retrieve all relevant docs?)")
+        print("─────────────────────────────────────────────")
+        print("\nScores range 0-1. Higher is better.")
+        print("\nRun logged to MLflow. View with: mlflow ui")
 
 if __name__ == "__main__":
     asyncio.run(main())
