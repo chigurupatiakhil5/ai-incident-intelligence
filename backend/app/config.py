@@ -11,8 +11,15 @@ class Settings(BaseSettings):
     supabase_db_url: str = ""
     groq_api_key: str = ""
     llm_provider: str = "claude"
+    # Comma-separated list, set via CORS_ALLOWED_ORIGINS on Render for the
+    # deployed frontend's real origin. Defaults cover local dev only.
+    cors_allowed_origins: str = "http://localhost:5173"
 
     class Config:
         env_file = ".env"
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()]
 
 settings = Settings()

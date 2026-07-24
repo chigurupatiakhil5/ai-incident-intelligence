@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
+from app.config import settings
 from app.database import get_db, create_tables
 from app.models.incident import Incident
 from app.workers.sqs_worker import run_worker
@@ -22,7 +23,7 @@ app = FastAPI(title="AI Incident Intelligence Platform", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.cors_allowed_origins_list,
     allow_methods=["*"],
     allow_headers=["*"],
 )

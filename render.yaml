@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: ai-incident-intelligence-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      # sync: false = Render prompts you to fill these in via its dashboard
+      # instead of storing values in this file - real secrets never belong
+      # in a committed render.yaml.
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        sync: false
+      - key: SQS_QUEUE_URL
+        sync: false
+      - key: LLM_PROVIDER
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

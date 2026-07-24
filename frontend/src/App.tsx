@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-const BACKEND_URL = "http://localhost:8000";
+// VITE_API_URL is set in Vercel's dashboard (Project Settings -> Environment
+// Variables) for the deployed site; falls back to localhost for local dev.
+const BACKEND_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const suggestions = [
   "What servers had critical CPU incidents?",
